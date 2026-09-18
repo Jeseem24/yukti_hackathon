@@ -1,0 +1,26 @@
+# Python & virtual environments
+__pycache__/
+*.py[cod]
+*.class
+.venv/
+venv/
+env/
+*.env
+
+# Node & Frontend
+node_modules/
+dist/
+build/
+.next/
+
+# Data & Model Binaries (keep heavy files local)
+*.parquet
+*.joblib
+*.pkl
+*.onnx
+
+# OS & Editor metadata
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
