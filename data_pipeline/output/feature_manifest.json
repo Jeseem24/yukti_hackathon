@@ -1,0 +1,192 @@
+[
+  {
+    "name": "timestamp",
+    "dtype": "datetime64[ns]",
+    "description": "Observation timestamp (datetime, 30-min nominal interval)"
+  },
+  {
+    "name": "equipment_id",
+    "dtype": "object",
+    "description": "Equipment identifier (e.g., CHILLER-01) - discovered dynamically"
+  },
+  {
+    "name": "Chilled Water Rate (L/sec)",
+    "dtype": "float64",
+    "description": "Chilled water flow rate in liters per second (imputed where missing)"
+  },
+  {
+    "name": "Cooling Water Temperature (C)",
+    "dtype": "float64",
+    "description": "Cooling water temperature in Celsius (imputed where missing)"
+  },
+  {
+    "name": "Building Load (RT)",
+    "dtype": "float64",
+    "description": "Building cooling load in refrigeration tons (imputed where missing)"
+  },
+  {
+    "name": "Chiller Energy Consumption (kWh)",
+    "dtype": "float64",
+    "description": "Chiller energy consumption in kWh - primary energy target (imputed where missing)"
+  },
+  {
+    "name": "Outside Temperature (F)",
+    "dtype": "float64",
+    "description": "Outside ambient temperature in Fahrenheit"
+  },
+  {
+    "name": "Dew Point (F)",
+    "dtype": "float64",
+    "description": "Dew point temperature in Fahrenheit"
+  },
+  {
+    "name": "Humidity (%)",
+    "dtype": "float64",
+    "description": "Relative humidity percentage (imputed where missing)"
+  },
+  {
+    "name": "Wind Speed (mph)",
+    "dtype": "float64",
+    "description": "Wind speed in miles per hour (imputed where missing)"
+  },
+  {
+    "name": "Pressure (in)",
+    "dtype": "float64",
+    "description": "Atmospheric pressure in inches of mercury (imputed where missing)"
+  },
+  {
+    "name": "Chilled Water Rate (L/sec)_was_missing",
+    "dtype": "bool",
+    "description": "True if the original Chilled Water Rate value was missing and was imputed"
+  },
+  {
+    "name": "Cooling Water Temperature (C)_was_missing",
+    "dtype": "bool",
+    "description": "True if the original Cooling Water Temperature value was missing and was imputed"
+  },
+  {
+    "name": "Building Load (RT)_was_missing",
+    "dtype": "bool",
+    "description": "True if the original Building Load value was missing and was imputed"
+  },
+  {
+    "name": "Chiller Energy Consumption (kWh)_was_missing",
+    "dtype": "bool",
+    "description": "True if the original Energy Consumption value was missing and was imputed"
+  },
+  {
+    "name": "Humidity (%)_was_missing",
+    "dtype": "bool",
+    "description": "True if the original Humidity value was missing and was imputed"
+  },
+  {
+    "name": "Wind Speed (mph)_was_missing",
+    "dtype": "bool",
+    "description": "True if the original Wind Speed value was missing and was imputed"
+  },
+  {
+    "name": "Pressure (in)_was_missing",
+    "dtype": "bool",
+    "description": "True if the original Pressure value was missing and was imputed"
+  },
+  {
+    "name": "time_since_last_obs_minutes",
+    "dtype": "float64",
+    "description": "Minutes since the previous observation for this equipment (NaN for first row)"
+  },
+  {
+    "name": "is_post_gap",
+    "dtype": "bool",
+    "description": "True if this row follows a gap longer than 45 minutes - a data feature, NOT an anomaly indicator"
+  },
+  {
+    "name": "gap_group_id",
+    "dtype": "int64",
+    "description": "Contiguous block ID per equipment - increments after gaps > 24h, used for rolling window segmentation"
+  },
+  {
+    "name": "efficiency_ratio",
+    "dtype": "float64",
+    "description": "Energy consumption per unit load (kWh/RT) - NaN if load < 10 RT to guard against division by near-zero"
+  },
+  {
+    "name": "energy_roll_mean_3h",
+    "dtype": "float64",
+    "description": "3-hour rolling mean of energy consumption (per equipment, gap-aware)"
+  },
+  {
+    "name": "energy_roll_std_3h",
+    "dtype": "float64",
+    "description": "3-hour rolling standard deviation of energy consumption (per equipment, gap-aware)"
+  },
+  {
+    "name": "eff_roll_mean_3h",
+    "dtype": "float64",
+    "description": "3-hour rolling mean of efficiency ratio (per equipment, gap-aware)"
+  },
+  {
+    "name": "eff_roll_std_3h",
+    "dtype": "float64",
+    "description": "3-hour rolling standard deviation of efficiency ratio (per equipment, gap-aware)"
+  },
+  {
+    "name": "energy_roll_mean_24h",
+    "dtype": "float64",
+    "description": "24-hour rolling mean of energy consumption (per equipment, gap-aware)"
+  },
+  {
+    "name": "energy_roll_std_24h",
+    "dtype": "float64",
+    "description": "24-hour rolling standard deviation of energy consumption (per equipment, gap-aware)"
+  },
+  {
+    "name": "eff_roll_mean_24h",
+    "dtype": "float64",
+    "description": "24-hour rolling mean of efficiency ratio (per equipment, gap-aware)"
+  },
+  {
+    "name": "eff_roll_std_24h",
+    "dtype": "float64",
+    "description": "24-hour rolling standard deviation of efficiency ratio (per equipment, gap-aware)"
+  },
+  {
+    "name": "energy_lag_1",
+    "dtype": "float64",
+    "description": "Energy consumption at t-1 (30 minutes prior, same equipment, does not cross gap boundaries)"
+  },
+  {
+    "name": "energy_lag_2",
+    "dtype": "float64",
+    "description": "Energy consumption at t-2 (60 minutes prior, same equipment, does not cross gap boundaries)"
+  },
+  {
+    "name": "hour_of_day",
+    "dtype": "int32",
+    "description": "Hour of the day (0-23) extracted from timestamp"
+  },
+  {
+    "name": "day_of_week",
+    "dtype": "int32",
+    "description": "Day of the week (0=Monday, 6=Sunday) extracted from timestamp"
+  },
+  {
+    "name": "month",
+    "dtype": "int32",
+    "description": "Month of the year (1-12) extracted from timestamp"
+  },
+  {
+    "name": "is_daytime",
+    "dtype": "bool",
+    "description": "True if observation falls within daytime hours (06:00-18:00)"
+  },
+  {
+    "name": "energy_zscore",
+    "dtype": "float64",
+    "description": "Z-score of energy consumption against this equipment's own 7-day rolling baseline (not global stats)"
+  },
+  {
+    "name": "efficiency_zscore",
+    "dtype": "float64",
+    "description": "Z-score of efficiency ratio against this equipment's own 7-day rolling baseline (not global stats)"
+  }
+]
