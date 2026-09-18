@@ -1,0 +1,14 @@
+{
+  "CHILLER-02_2019-09-24T10:30:00": {
+    "explanation": "CHILLER-02 consumed 121.8 kWh, which is 9.2% higher than the expected 111.6 kWh, despite a reported building load of 0 RT. The model identifies Chilled Water Rate and Building Load as the primary contributors to this deviation, indicating an inconsistency between the zero load reading and the elevated energy usage.",
+    "recommendation": "Verify the accuracy of the Building Load sensor and inspect the Chilled Water flow meter to resolve the discrepancy between the zero load reading and the high energy consumption."
+  },
+  "CHILLER-01_2020-01-11T06:00:00": {
+    "explanation": "CHILLER-01 consumed 120.0 kWh, which is 10.9% higher than the expected 108.2 kWh, despite a building load of 0 RT. The efficiency ratio remained at 0.000 kWh/RT, indicating the energy consumption is not proportional to any cooling load, suggesting the unit is running without delivering useful cooling.",
+    "recommendation": "Inspect CHILLER-01 for short-cycling or control faults that cause operation during zero-load conditions."
+  },
+  "CHILLER-02_2019-11-20T12:00:00": {
+    "explanation": "CHILLER-02 consumed 134.1 kWh, which is 8.2% higher than the expected 123.9 kWh, despite a building load of 0 RT. The efficiency ratio remained at 0.000 kWh/RT for both baseline and event periods, indicating the energy deviation is not driven by increased thermal load but by an abnormal consumption pattern at zero load.",
+    "recommendation": "Inspect CHILLER-02 for parasitic loads or control faults causing energy consumption while the building load is zero."
+  }
+}
