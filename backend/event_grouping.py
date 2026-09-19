@@ -83,18 +83,13 @@ def _top_features_for_event(group_df: pd.DataFrame) -> List[str]:
     """
     from collections import Counter
     counts: Counter = Counter()
-    if "top_contributing_features" in group_df.columns:
-        for feats in group_df["top_contributing_features"]:
-            if isinstance(feats, list):
-                counts.update(feats)
-            elif isinstance(feats, str) and feats:
-                counts.update([feats])
+    for feats in group_df["top_contributing_features"]:
+        if isinstance(feats, list):
+            counts.update(feats)
+        elif isinstance(feats, str) and feats:
+            counts.update([feats])
     if not counts:
-        defaults = []
-        for col in ["Building Load (RT)", "Chilled Water Rate (L/sec)", "Cooling Water Temperature (C)", "Outside Temperature (F)"]:
-            if col in group_df.columns:
-                defaults.append(col)
-        return defaults[:3] if defaults else ["Building Load", "Chilled Water Rate", "Cooling Water Temp"]
+        return ["energy consumption"]
     return [f for f, _ in counts.most_common(3)]
 
 
