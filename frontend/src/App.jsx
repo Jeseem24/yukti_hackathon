@@ -219,31 +219,20 @@ export default function App() {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {/* Backend Source Switcher */}
-            {(() => {
-              const activeUrl = getActiveBaseUrl();
-              const isLocal = activeUrl.includes("localhost") || activeUrl.includes("127.0.0.1");
-              return (
-                <button
-                  type="button"
-                  className="theme-toggle-btn"
-                  onClick={() => {
-                    const next = isLocal
-                      ? "https://sasha-undeprecated-fortifyingly.ngrok-free.dev"
-                      : "http://localhost:8000";
-                    setActiveBaseUrl(next);
-                  }}
-                  title="Click to toggle between Member 3 Live Ngrok backend and Local fast backend"
-                  style={{
-                    borderColor: isLocal ? "#10B981" : "var(--blueberry)",
-                    color: isLocal ? "#10B981" : "var(--blueberry)",
-                  }}
-                >
-                  {isLocal ? <Zap size={13} /> : <Globe size={13} />}
-                  <span>{isLocal ? "Local :8000 (Fast)" : "Ngrok Live (Member 3)"}</span>
-                </button>
-              );
-            })()}
+            {/* Backend Source Badge */}
+            <div
+              className="theme-toggle-btn"
+              style={{
+                borderColor: "#10B981",
+                color: "#10B981",
+                cursor: "default",
+                background: "rgba(16, 185, 129, 0.08)",
+              }}
+              title="FastAPI Backend running on 127.0.0.1:8000"
+            >
+              <Zap size={13} />
+              <span>Backend: Local (Port 8000)</span>
+            </div>
 
             {/* Theme Toggle Button */}
             <button

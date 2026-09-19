@@ -28,6 +28,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import math
+import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -166,33 +168,49 @@ def _event_to_schema(ev: AnomalyEventRaw) -> AnomalyEvent:
 
 
 def _safe_float(val, default=0.0):
-    if pd.isna(val) or val is None:
+    if val is None or pd.isna(val):
         return default
     try:
         f = float(val)
-        return default if np.isnan(f) or np.isinf(f) else f
+        return default if (math.isnan(f) or math.isinf(f)) else f
     except (ValueError, TypeError):
         return default
 
 
 def _points_to_schema(points_df: pd.DataFrame) -> List[TimeSeriesPoint]:
-    """Convert a DataFrame slice to a list of TimeSeriesPoint schema objects."""
-    import numpy as np
-    result = []
-    for _, row in points_df.iterrows():
-        act = _safe_float(row.get("actual_energy_kwh", 0.0))
-        exp = _safe_float(row.get("expected_energy_kwh", 0.0))
-        score = _safe_float(row.get("fused_anomaly_score", 0.0))
-        result.append(
-            TimeSeriesPoint(
-                timestamp=pd.Timestamp(row["timestamp"]).isoformat(),
-                actual_energy=round(act, 2),
-                expected_energy=round(exp, 2),
-                anomaly_score=round(score, 4),
-                is_anomalous=bool(row.get("is_anomalous", False)),
-            )
+    """Convert a DataFrame slice to a list of TimeSeriesPoint schema objects safely and rapidly."""
+    df = points_df.copy()
+    if "actual_energy_kwh" not in df.columns:
+        df["actual_energy_kwh"] = 0.0
+    if "expected_energy_kwh" not in df.columns:
+        df["expected_energy_kwh"] = 0.0
+    if "fused_anomaly_score" not in df.columns:
+        df["fused_anomaly_score"] = 0.0
+    if "is_anomalous" not in df.columns:
+        df["is_anomalous"] = False
+
+    df["actual_energy_kwh"] = pd.to_numeric(df["actual_energy_kwh"], errors="coerce").fillna(0.0)
+    df["expected_energy_kwh"] = pd.to_numeric(df["expected_energy_kwh"], errors="coerce").fillna(0.0)
+    df["fused_anomaly_score"] = pd.to_numeric(df["fused_anomaly_score"], errors="coerce").fillna(0.0)
+    df["is_anomalous"] = df["is_anomalous"].fillna(False).astype(bool)
+
+    # Format timestamps cleanly
+    timestamps = [pd.Timestamp(t).isoformat() for t in df["timestamp"]]
+    actuals = df["actual_energy_kwh"].round(2).tolist()
+    expecteds = df["expected_energy_kwh"].round(2).tolist()
+    scores = df["fused_anomaly_score"].round(4).tolist()
+    anomalies = df["is_anomalous"].tolist()
+
+    return [
+        TimeSeriesPoint(
+            timestamp=t,
+            actual_energy=a,
+            expected_energy=e,
+            anomaly_score=s,
+            is_anomalous=anom,
         )
-    return result
+        for t, a, e, s, anom in zip(timestamps, actuals, expecteds, scores, anomalies)
+    ]
 
 
 
@@ -213,6 +231,63 @@ def list_equipment() -> List[str]:
     Never hard-coded — works on any conforming dataset.
     """
     return get_equipment_ids()
+
+
+@app.get("/equipment/health", tags=["Equipment"])
+def get_equipment_health():
+    """
+    Fleet health summary with 24h sparklines for quick loading in frontend overview.
+    """
+    equipment_ids = get_equipment_ids()
+    all_events = _get_all_events()
+    df = load_anomaly_scores()
+
+    results = []
+    for eq_id in equipment_ids:
+        eq_events = [e for e in all_events if e.equipment_id == eq_id]
+        max_sev = max((e.severity for e in eq_events), default=0.0)
+
+        status = "Normal"
+        if max_sev >= 0.75:
+            status = "Critical"
+        elif max_sev >= 0.55:
+            status = "Warning"
+        elif max_sev >= 0.35:
+            status = "Watch"
+
+        eq_df = df[df["equipment_id"] == eq_id]
+        sparkline = []
+        last_observed = None
+        last_actual = 0.0
+        last_expected = 0.0
+
+        if not eq_df.empty:
+            last_48 = eq_df.tail(48)
+            for _, r in last_48.iterrows():
+                act = _safe_float(r.get("actual_energy_kwh", 0.0))
+                exp = _safe_float(r.get("expected_energy_kwh", 0.0))
+                sparkline.append({
+                    "timestamp": pd.Timestamp(r["timestamp"]).isoformat(),
+                    "actual_energy": round(act, 2),
+                    "expected_energy": round(exp, 2),
+                    "is_anomalous": bool(r.get("is_anomalous", False)),
+                })
+            last_row = eq_df.iloc[-1]
+            last_observed = pd.Timestamp(last_row["timestamp"]).isoformat()
+            last_actual = round(_safe_float(last_row.get("actual_energy_kwh", 0.0)), 2)
+            last_expected = round(_safe_float(last_row.get("expected_energy_kwh", 0.0)), 2)
+
+        results.append({
+            "equipment_id": eq_id,
+            "status": status,
+            "max_severity": round(max_sev, 4),
+            "anomaly_count": len(eq_events),
+            "sparkline": sparkline,
+            "last_observed": last_observed,
+            "last_actual_energy": last_actual,
+            "last_expected_energy": last_expected,
+        })
+    return results
 
 
 @app.get(

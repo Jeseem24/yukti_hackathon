@@ -18,13 +18,20 @@ const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 export function getActiveBaseUrl() {
   const saved = localStorage.getItem("chiller_api_url");
   if (!saved || saved.includes("ngrok")) {
+    try {
+      localStorage.removeItem("chiller_api_url");
+    } catch (_) {}
     return DEFAULT_URL;
   }
   return saved;
 }
 
 export function setActiveBaseUrl(url) {
-  localStorage.setItem("chiller_api_url", url);
+  if (url && !url.includes("ngrok")) {
+    localStorage.setItem("chiller_api_url", url);
+  } else {
+    localStorage.removeItem("chiller_api_url");
+  }
   timeseriesCache.clear();
   window.location.reload();
 }
