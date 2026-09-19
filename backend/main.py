@@ -165,20 +165,35 @@ def _event_to_schema(ev: AnomalyEventRaw) -> AnomalyEvent:
     )
 
 
+def _safe_float(val, default=0.0):
+    if pd.isna(val) or val is None:
+        return default
+    try:
+        f = float(val)
+        return default if np.isnan(f) or np.isinf(f) else f
+    except (ValueError, TypeError):
+        return default
+
+
 def _points_to_schema(points_df: pd.DataFrame) -> List[TimeSeriesPoint]:
     """Convert a DataFrame slice to a list of TimeSeriesPoint schema objects."""
+    import numpy as np
     result = []
     for _, row in points_df.iterrows():
+        act = _safe_float(row.get("actual_energy_kwh", 0.0))
+        exp = _safe_float(row.get("expected_energy_kwh", 0.0))
+        score = _safe_float(row.get("fused_anomaly_score", 0.0))
         result.append(
             TimeSeriesPoint(
                 timestamp=pd.Timestamp(row["timestamp"]).isoformat(),
-                actual_energy=round(float(row.get("actual_energy_kwh", 0.0)), 2),
-                expected_energy=round(float(row.get("expected_energy_kwh", 0.0)), 2),
-                anomaly_score=round(float(row.get("fused_anomaly_score", 0.0)), 4),
+                actual_energy=round(act, 2),
+                expected_energy=round(exp, 2),
+                anomaly_score=round(score, 4),
                 is_anomalous=bool(row.get("is_anomalous", False)),
             )
         )
     return result
+
 
 
 # ---------------------------------------------------------------------------
@@ -347,3 +362,134 @@ def admin_reload_data() -> dict:
     load_anomaly_scores.cache_clear()
     _events_cache = None
     return {"status": "data reloaded", "equipment": get_equipment_ids()}
+
+
+# ---------------------------------------------------------------------------
+# Live Simulator & CSV Upload Endpoints
+# ---------------------------------------------------------------------------
+import io
+from pydantic import BaseModel, Field
+from fastapi import UploadFile, File
+
+class SimulationInput(BaseModel):
+    equipment_id: str = "CHILLER-01"
+    building_load_rt: float = Field(500.0, description="Building Load in Refrigeration Tons (RT)")
+    chilled_water_rate_lps: float = Field(100.0, description="Chilled water flow rate in L/sec")
+    cooling_water_temp_c: float = Field(29.5, description="Cooling water temperature in °C")
+    outside_temp_f: float = Field(82.0, description="Outside ambient temperature in °F")
+    dew_point_f: float = Field(74.0, description="Dew point in °F")
+    humidity_pct: float = Field(75.0, description="Relative humidity %")
+    wind_speed_mph: float = Field(5.0, description="Wind speed in mph")
+    pressure_in: float = Field(29.9, description="Barometric pressure in inches")
+    actual_energy_kwh: float = Field(120.0, description="Actual energy consumed in kWh")
+
+_ml_models = None
+
+def get_ml_models():
+    global _ml_models
+    if _ml_models is None:
+        import sys
+        from pathlib import Path
+        repo_root = Path(__file__).resolve().parent.parent
+        if str(repo_root) not in sys.path:
+            sys.path.insert(0, str(repo_root))
+        from modeling.pipeline import load_trained_models
+        models_dir = repo_root / "modeling" / "output" / "dev_run" / "trained_models"
+        _ml_models = load_trained_models(models_dir)
+    return _ml_models
+
+
+@app.post("/api/simulate", tags=["Simulation & Upload"])
+def simulate_prediction(sim: SimulationInput) -> dict:
+    """Run real-time inference on custom simulated sensor readings."""
+    import sys
+    from pathlib import Path
+    repo_root = Path(__file__).resolve().parent.parent
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+    from modeling.pipeline import score_all
+
+    models = get_ml_models()
+
+    df = pd.DataFrame([{
+        "timestamp": pd.Timestamp.now().isoformat(),
+        "equipment_id": sim.equipment_id,
+        "Building Load (RT)": sim.building_load_rt,
+        "Chilled Water Rate (L/sec)": sim.chilled_water_rate_lps,
+        "Cooling Water Temperature (C)": sim.cooling_water_temp_c,
+        "Outside Temperature (F)": sim.outside_temp_f,
+        "Dew Point (F)": sim.dew_point_f,
+        "Humidity (%)": sim.humidity_pct,
+        "Wind Speed (mph)": sim.wind_speed_mph,
+        "Pressure (in)": sim.pressure_in,
+        "Chiller Energy Consumption (kWh)": sim.actual_energy_kwh,
+    }])
+
+    res = score_all(df, models)
+    row = res.iloc[0]
+
+    expected = round(float(row["expected_energy_kwh"]), 2)
+    residual = round(float(row["residual_kwh"]), 2)
+    residual_pct = round(float(row.get("residual_pct", 0.0)) * 100, 1)
+    fused_score = round(float(row["fused_anomaly_score"]), 4)
+    is_anom = bool(row["is_anomalous"])
+
+    return {
+        "equipment_id": sim.equipment_id,
+        "actual_energy_kwh": sim.actual_energy_kwh,
+        "expected_energy_kwh": expected,
+        "residual_kwh": residual,
+        "residual_pct": residual_pct,
+        "multivariate_outlier_score": round(float(row.get("multivariate_outlier_score", 0.0)), 4),
+        "fused_anomaly_score": fused_score,
+        "is_anomalous": is_anom,
+        "deviation_direction": str(row.get("deviation_direction", "NORMAL")),
+        "model_type": str(row.get("model_type", "equipment_specific")),
+    }
+
+
+@app.post("/api/upload-csv", tags=["Simulation & Upload"])
+async def upload_csv_file(file: UploadFile = File(...)) -> dict:
+    """Upload a custom CSV dataset, score it with the ML model, and update dashboard telemetry."""
+    import sys
+    from pathlib import Path
+    repo_root = Path(__file__).resolve().parent.parent
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+    from modeling.pipeline import score_all, generate_events
+    from data_access import PROJECT_DIR, load_anomaly_scores
+
+    models = get_ml_models()
+
+    content = await file.read()
+    try:
+        df_raw = pd.read_csv(io.BytesIO(content))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid CSV file: {str(e)}")
+
+    scored = score_all(df_raw, models)
+    events = generate_events(scored, models)
+
+    # Save as active datasets for backend to serve
+    out_parquet = PROJECT_DIR / "modeling" / "anomaly_scores.parquet"
+    out_csv = PROJECT_DIR / "modeling" / "anomaly_scores.csv"
+    scored.to_parquet(out_parquet, index=False)
+    scored.to_csv(out_csv, index=False)
+
+    # Invalidate cache so fresh data is served immediately
+    load_anomaly_scores.cache_clear()
+    global _events_cache
+    _events_cache = None
+
+    anomalies_count = int(scored["is_anomalous"].sum())
+    equipment_list = [str(x) for x in scored["equipment_id"].unique()]
+
+    return {
+        "status": "success",
+        "filename": file.filename,
+        "rows_scored": len(scored),
+        "anomalies_detected": anomalies_count,
+        "events_created": len(events),
+        "equipment_discovered": equipment_list,
+    }
+

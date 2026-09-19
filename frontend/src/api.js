@@ -279,3 +279,34 @@ export async function fetchEquipmentHealth() {
   cachedEquipmentHealth = summaries;
   return summaries;
 }
+
+export async function simulatePrediction(payload) {
+  const baseUrl = getActiveBaseUrl();
+  const res = await fetch(`${baseUrl}/api/simulate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Simulation failed: ${text}`);
+  }
+  return await res.json();
+}
+
+export async function uploadCsvFile(file) {
+  const baseUrl = getActiveBaseUrl();
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${baseUrl}/api/upload-csv`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`CSV Upload failed: ${text}`);
+  }
+  timeseriesCache.clear();
+  return await res.json();
+}
+

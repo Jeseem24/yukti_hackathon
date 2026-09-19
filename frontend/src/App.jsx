@@ -21,6 +21,7 @@ import EquipmentHealthSummary from "./components/EquipmentHealthSummary";
 import TimeSeriesChart from "./components/TimeSeriesChart";
 import AnomalyList from "./components/AnomalyList";
 import AnomalyDetailPanel from "./components/AnomalyDetailPanel";
+import LiveSimulatorPanel from "./components/LiveSimulatorPanel";
 import { fetchEquipmentList, fetchAnomalies, getActiveBaseUrl, setActiveBaseUrl } from "./api";
 
 const VIEWS = {
@@ -28,6 +29,7 @@ const VIEWS = {
   EQUIPMENT_DETAIL: "equipment_detail",
   ANOMALY_EXPLORER: "anomaly_explorer",
   ANOMALY_DETAIL: "anomaly_detail",
+  SIMULATOR: "simulator",
 };
 
 const PAGE_META = {
@@ -46,6 +48,10 @@ const PAGE_META = {
   [VIEWS.ANOMALY_DETAIL]: {
     title: "Anomaly Diagnostic Dossier",
     sub: "5-question root cause breakdown and recommended operational action",
+  },
+  [VIEWS.SIMULATOR]: {
+    title: "Live ML Simulator & Data Ingestion",
+    sub: "Simulate sensor values in real time or upload custom CSV datasets",
   },
 };
 
@@ -140,6 +146,16 @@ export default function App() {
             <AlertTriangle size={16} />
             <span>Anomaly Directory</span>
             {alertCount > 0 && <span className="nav-badge">{alertCount}</span>}
+          </button>
+
+          <button
+            type="button"
+            className={`nav-item ${view === VIEWS.SIMULATOR ? "active" : ""}`}
+            onClick={() => setView(VIEWS.SIMULATOR)}
+          >
+            <Activity size={16} />
+            <span>Simulator & Upload</span>
+            <span className="nav-badge" style={{ background: "var(--apricot)", color: "#fff" }}>Live</span>
           </button>
         </nav>
 
@@ -315,6 +331,12 @@ export default function App() {
               eventId={selectedEventId}
               onBack={() => setView(VIEWS.ANOMALY_EXPLORER)}
               onOpenEquipment={openEquipment}
+            />
+          )}
+
+          {view === VIEWS.SIMULATOR && (
+            <LiveSimulatorPanel
+              onNavigateToOverview={() => setView(VIEWS.OVERVIEW)}
             />
           )}
         </main>
