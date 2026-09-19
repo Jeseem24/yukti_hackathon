@@ -12,11 +12,15 @@ import {
   MOCK_EQUIPMENT_HEALTH,
 } from "./mock/mockData";
 
-const DEFAULT_URL = import.meta.env.VITE_API_BASE_URL || "https://sasha-undeprecated-fortifyingly.ngrok-free.dev";
-const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true"; // default: real backend
+const DEFAULT_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 
 export function getActiveBaseUrl() {
-  return localStorage.getItem("chiller_api_url") || DEFAULT_URL;
+  const saved = localStorage.getItem("chiller_api_url");
+  if (!saved || saved.includes("ngrok")) {
+    return DEFAULT_URL;
+  }
+  return saved;
 }
 
 export function setActiveBaseUrl(url) {
