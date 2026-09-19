@@ -25,3 +25,9 @@ build/
 Thumbs.db
 .vscode/
 .idea/
+
+# Knowledge graph & local test outputs
+graphify-out/
+modeling/output/
+modeling/anomaly_scores.csv
+
