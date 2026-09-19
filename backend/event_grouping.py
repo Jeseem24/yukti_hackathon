@@ -43,6 +43,7 @@ class AnomalyEventRaw:
     top_contributing_features: List[str]
     # Raw data points for the evidence chart
     points_df: pd.DataFrame = field(repr=False)
+    anomaly_type: str = "Energy Overconsumption Fault"
 
 
 def _make_event_id(equipment_id: str, start: pd.Timestamp) -> str:
@@ -147,6 +148,23 @@ def group_events(equipment_df: pd.DataFrame) -> List[AnomalyEventRaw]:
     return events
 
 
+def _infer_anomaly_type(avg_residual_pct: float, top_features: List[str]) -> str:
+    if avg_residual_pct > 25:
+        return "Severe Overconsumption (Tube Fouling / Leak)"
+    elif avg_residual_pct > 8:
+        return "Energy Overconsumption Fault"
+    elif avg_residual_pct < -15:
+        return "Underconsumption / Sensor Clipping"
+    elif any("Cooling Water" in f for f in top_features):
+        return "Condenser Heat Rejection Fault"
+    elif any("Chilled Water" in f for f in top_features):
+        return "Chilled Water Flow Imbalance"
+    elif any("Building Load" in f for f in top_features):
+        return "Thermal Load Disparity"
+    else:
+        return "Operating State Outlier"
+
+
 def _build_event(equipment_id: str, group: pd.DataFrame) -> AnomalyEventRaw:
     start = group["timestamp"].min()
     end = group["timestamp"].max()
@@ -174,6 +192,9 @@ def _build_event(equipment_id: str, group: pd.DataFrame) -> AnomalyEventRaw:
         else 0.0
     )
 
+    top_feats = _top_features_for_event(group)
+    anom_type = _infer_anomaly_type(avg_residual_pct, top_feats)
+
     return AnomalyEventRaw(
         equipment_id=equipment_id,
         start=start,
@@ -186,8 +207,9 @@ def _build_event(equipment_id: str, group: pd.DataFrame) -> AnomalyEventRaw:
         avg_residual_pct=avg_residual_pct,
         avg_load_rt=avg_load_rt,
         duration_hours=round(duration_hours, 2),
-        top_contributing_features=_top_features_for_event(group),
+        top_contributing_features=top_feats,
         points_df=group,
+        anomaly_type=anom_type,
     )
 
 

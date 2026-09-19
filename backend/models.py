@@ -51,6 +51,7 @@ class AnomalyEvent(BaseModel):
     top_contributing_features: List[str]
     explanation: str
     recommendation: str
+    anomaly_type: str = "Energy Overconsumption Fault"
 
 
 # ---------------------------------------------------------------------------

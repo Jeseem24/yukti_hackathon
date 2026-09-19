@@ -164,6 +164,7 @@ def _event_to_schema(ev: AnomalyEventRaw) -> AnomalyEvent:
         top_contributing_features=ev.top_contributing_features,
         explanation=explanation,
         recommendation=recommendation,
+        anomaly_type=getattr(ev, "anomaly_type", "Energy Overconsumption Fault"),
     )
 
 
@@ -407,6 +408,7 @@ def get_anomaly_detail(event_id: str) -> AnomalyEventDetail:
         top_contributing_features=ev.top_contributing_features,
         explanation=explanation,
         recommendation=recommendation,
+        anomaly_type=getattr(ev, "anomaly_type", "Energy Overconsumption Fault"),
         points=points,
         duration_hours=ev.duration_hours,
         avg_actual_energy_kwh=round(ev.avg_actual_energy_kwh, 2),

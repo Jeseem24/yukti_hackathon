@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AnomalyDetailPanel.jsx - View 4: Diagnostic Anomaly Dossier
  * Fully aligned with Member 3 backend schema and Problem Statement 5 Questions:
  *  1. WHAT'S HAPPENING?
@@ -197,6 +197,20 @@ export default function AnomalyDetailPanel({ eventId, onBack, onOpenEquipment })
                 <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--text-main)", letterSpacing: "-0.01em" }}>
                   {detail.equipment_id}
                 </h1>
+                <span
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: 800,
+                    padding: "3px 10px",
+                    borderRadius: 4,
+                    background: "rgba(220, 38, 38, 0.12)",
+                    border: "1px solid var(--alert-red)",
+                    color: "var(--alert-red)",
+                    letterSpacing: "0.03em",
+                  }}
+                >
+                  FAULT TYPE: {detail.anomaly_type || "Energy Overconsumption Fault"}
+                </span>
                 <span
                   style={{
                     fontSize: 11,

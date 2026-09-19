@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AnomalyList.jsx - View 3: Severity-Ranked Anomaly Explorer
  * 
  * Complies with 00_SHARED_CONTRACT.md & 04_AGENT_BRIEF_frontend_dashboard.md:
@@ -267,9 +267,23 @@ export default function AnomalyList({ onSelectAnomaly, selectedEventId }) {
 
                   <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                         <span style={{ fontSize: 14, fontWeight: 800, color: "var(--text-main)", fontFamily: "var(--font-mono)" }}>
                           {item.equipment_id}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 800,
+                            padding: "2px 8px",
+                            borderRadius: 4,
+                            background: "rgba(220, 38, 38, 0.12)",
+                            color: "var(--alert-red)",
+                            border: "1px solid rgba(220, 38, 38, 0.28)",
+                            letterSpacing: "0.02em",
+                          }}
+                        >
+                          {item.anomaly_type || "Energy Overconsumption Fault"}
                         </span>
                         <span style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
                           <Clock size={12} />
