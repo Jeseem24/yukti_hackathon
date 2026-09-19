@@ -79,24 +79,47 @@ def _compute_severity(group_df: pd.DataFrame, duration_hours: float) -> float:
 
 def _top_features_for_event(group_df: pd.DataFrame) -> List[str]:
     """
-    Aggregate top_contributing_features across all rows in the event.
-    Returns the most frequently mentioned features (top 3).
+    Computes real top contributing features ranked by z-score deviation from standard operation.
     """
-    from collections import Counter
-    counts: Counter = Counter()
     if "top_contributing_features" in group_df.columns:
+        from collections import Counter
+        counts: Counter = Counter()
         for feats in group_df["top_contributing_features"]:
             if isinstance(feats, list):
                 counts.update(feats)
             elif isinstance(feats, str) and feats:
                 counts.update([feats])
-    if not counts:
-        defaults = []
-        for col in ["Building Load (RT)", "Chilled Water Rate (L/sec)", "Cooling Water Temperature (C)", "Outside Temperature (F)"]:
-            if col in group_df.columns:
-                defaults.append(col)
-        return defaults[:3] if defaults else ["Building Load (RT)", "Chilled Water Rate", "Cooling Water Temp"]
-    return [f for f, _ in counts.most_common(3)]
+        if counts:
+            return [f for f, _ in counts.most_common(3)]
+
+    feature_candidates = [
+        ("Building Load (RT)", "Building Cooling Load (RT)"),
+        ("Cooling Water Temperature (C)", "Condenser Water Temp (C)"),
+        ("Chilled Water Rate (L/sec)", "Chilled Water Flow (L/s)"),
+        ("Outside Temperature (F)", "Outdoor Ambient Temp (F)"),
+        ("Humidity (%)", "Outdoor Humidity (%)"),
+    ]
+    ranked = []
+    for col, label in feature_candidates:
+        if col in group_df.columns:
+            m = float(group_df[col].mean())
+            if col == "Building Load (RT)":
+                ref_mean, ref_std = 514.0, 85.0
+            elif col == "Cooling Water Temperature (C)":
+                ref_mean, ref_std = 31.7, 1.2
+            elif col == "Chilled Water Rate (L/sec)":
+                ref_mean, ref_std = 96.5, 12.0
+            elif col == "Outside Temperature (F)":
+                ref_mean, ref_std = 83.0, 6.0
+            elif col == "Humidity (%)":
+                ref_mean, ref_std = 70.0, 15.0
+            else:
+                ref_mean, ref_std = m, 1.0
+            z = abs(m - ref_mean) / ref_std
+            ranked.append((label, z))
+
+    ranked.sort(key=lambda x: x[1], reverse=True)
+    return [label for label, _ in ranked[:3]] if ranked else ["Building Cooling Load", "Chilled Water Flow", "Condenser Water Temp"]
 
 
 def group_events(equipment_df: pd.DataFrame) -> List[AnomalyEventRaw]:
@@ -148,21 +171,26 @@ def group_events(equipment_df: pd.DataFrame) -> List[AnomalyEventRaw]:
     return events
 
 
-def _infer_anomaly_type(avg_residual_pct: float, top_features: List[str]) -> str:
-    if avg_residual_pct > 25:
+def _infer_anomaly_type(group: pd.DataFrame) -> str:
+    res_pct = float(group["residual_pct"].mean()) if "residual_pct" in group.columns else 0.0
+    cw_temp = float(group["Cooling Water Temperature (C)"].mean()) if "Cooling Water Temperature (C)" in group.columns else 31.0
+    flow = float(group["Chilled Water Rate (L/sec)"].mean()) if "Chilled Water Rate (L/sec)" in group.columns else 96.0
+    load = float(group["Building Load (RT)"].mean()) if "Building Load (RT)" in group.columns else 500.0
+
+    if res_pct >= 0.35:
         return "Severe Overconsumption (Tube Fouling / Leak)"
-    elif avg_residual_pct > 8:
-        return "Energy Overconsumption Fault"
-    elif avg_residual_pct < -15:
+    elif res_pct <= -0.15:
         return "Underconsumption / Sensor Clipping"
-    elif any("Cooling Water" in f for f in top_features):
+    elif load >= 700:
+        return "Peak Thermal Load Surge"
+    elif cw_temp >= 34.0:
         return "Condenser Heat Rejection Fault"
-    elif any("Chilled Water" in f for f in top_features):
-        return "Chilled Water Flow Imbalance"
-    elif any("Building Load" in f for f in top_features):
-        return "Thermal Load Disparity"
+    elif flow >= 115 or flow <= 85:
+        return "Hydraulic Flow Imbalance"
+    elif res_pct >= 0.12:
+        return "Energy Overconsumption Fault"
     else:
-        return "Operating State Outlier"
+        return "Thermodynamic Operating State Outlier"
 
 
 def _build_event(equipment_id: str, group: pd.DataFrame) -> AnomalyEventRaw:
@@ -193,7 +221,7 @@ def _build_event(equipment_id: str, group: pd.DataFrame) -> AnomalyEventRaw:
     )
 
     top_feats = _top_features_for_event(group)
-    anom_type = _infer_anomaly_type(avg_residual_pct, top_feats)
+    anom_type = _infer_anomaly_type(group)
 
     return AnomalyEventRaw(
         equipment_id=equipment_id,
